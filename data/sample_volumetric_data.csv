@@ -1,0 +1,4 @@
+area_acres,thickness_ft,porosity,water_saturation,Bo
+640,50,0.18,0.25,1.2
+320,30,0.15,0.2,1.1
+1200,60,0.2,0.22,1.3
