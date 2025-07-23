@@ -1,53 +1,83 @@
-# dca.py
+# dca.py file
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, OptimizeWarning
+import warnings
 
-def perform_dca(filepath='data/dca_production_data.csv'):
-    # Load the production data CSV
-    data = pd.read_csv(filepath)
-    t = data['time_days'].values
-    q = data['production_rate'].values
+# Decline curve models
+def exponential(t, qi, D):
+    return qi * np.exp(-D * t)
 
-    # Decline models
-    def exponential(t, qi, D):
-        return qi * np.exp(-D * t)
+def harmonic(t, qi, D):
+    return qi / (1 + D * t)
 
-    def harmonic(t, qi, D):
-        return qi / (1 + D * t)
+def hyperbolic(t, qi, D, b):
+    return qi / np.power(1 + b * D * t, 1 / b)
 
-    def hyperbolic(t, qi, D, b):
-        return qi / (1 + b * D * t)**(1/b)
+def perform_dca(file_path):
+    df = pd.read_csv(file_path)
+    
+    # Ensure column names are correct
+    if 'time_days' not in df.columns or 'production_rate' not in df.columns:
+        raise ValueError("CSV file must contain 'time_days' and 'production_rate' columns.")
+    
+    t = df['time_days'].values
+    q = df['production_rate'].values
 
-    # Curve fitting
-    popt_exp, _ = curve_fit(exponential, t, q, maxfev=10000)
-    popt_har, _ = curve_fit(harmonic, t, q, maxfev=10000)
-    popt_hyp, _ = curve_fit(hyperbolic, t, q, bounds=([0, 0, 0], [np.inf, 1, 1]), maxfev=10000)
+    # Exponential model
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", OptimizeWarning)
+        try:
+            popt_exp, _ = curve_fit(exponential, t, q, bounds=(0, np.inf), maxfev=10000)
+            print("Exponential Model: qi = {:.2f}, D = {:.4f}".format(*popt_exp))
+        except Exception as e:
+            print("Exponential Model: Fit failed —", str(e))
 
-    # Prediction
-    t_pred = np.linspace(0, 1000, 500)
-    q_exp = exponential(t_pred, *popt_exp)
-    q_har = harmonic(t_pred, *popt_har)
-    q_hyp = hyperbolic(t_pred, *popt_hyp)
+    # Harmonic model
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", OptimizeWarning)
+        try:
+            popt_har, _ = curve_fit(harmonic, t, q, bounds=(0, np.inf), maxfev=10000)
+            print("Harmonic Model:    qi = {:.2f}, D = {:.4f}".format(*popt_har))
+        except Exception as e:
+            print("Harmonic Model: Fit failed —", str(e))
 
-    # Plotting
+    # Hyperbolic model
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", OptimizeWarning)
+        try:
+            popt_hyp, _ = curve_fit(hyperbolic, t, q, bounds=([0, 0, 0], [np.inf, 1, 1]), maxfev=10000)
+            print("Hyperbolic Model:  qi = {:.2f}, D = {:.4f}, b = {:.4f}".format(*popt_hyp))
+        except Exception as e:
+            print("Hyperbolic Model: Fit failed —", str(e))
+
+    # Plotting the decline models
+    t_fit = np.linspace(t.min(), t.max(), 100)
+
     plt.figure(figsize=(10, 6))
-    plt.scatter(t, q, color='black', label='Actual Data')
-    plt.plot(t_pred, q_exp, '--', label='Exponential')
-    plt.plot(t_pred, q_har, '-.', label='Harmonic')
-    plt.plot(t_pred, q_hyp, ':', label='Hyperbolic')
+    plt.scatter(t, q, label='Observed', color='black')
 
-    plt.xlabel("Time (days)")
-    plt.ylabel("Production Rate (STB/day)")
-    plt.title("Decline Curve Analysis")
+    try:
+        plt.plot(t_fit, exponential(t_fit, *popt_exp), label='Exponential', linestyle='--')
+    except:
+        pass
+
+    try:
+        plt.plot(t_fit, harmonic(t_fit, *popt_har), label='Harmonic', linestyle='-.')
+    except:
+        pass
+
+    try:
+        plt.plot(t_fit, hyperbolic(t_fit, *popt_hyp), label='Hyperbolic', linestyle=':')
+    except:
+        pass
+
+    plt.xlabel('Time (days)')
+    plt.ylabel('Production Rate')
+    plt.title('Decline Curve Analysis')
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
     plt.show()
-
-    # Print parameters
-    print("Exponential Model: qi = {:.2f}, D = {:.4f}".format(*popt_exp))
-    print("Harmonic Model:    qi = {:.2f}, D = {:.4f}".format(*popt_har))
-    print("Hyperbolic Model:  qi = {:.2f}, D = {:.4f}, b = {:.4f}".format(*popt_hyp))
