@@ -19,7 +19,6 @@ def hyperbolic(t, qi, D, b):
 def perform_dca(file_path):
     df = pd.read_csv(file_path)
     
-    # Ensure column names are correct
     if 'time_days' not in df.columns or 'production_rate' not in df.columns:
         raise ValueError("CSV file must contain 'time_days' and 'production_rate' columns.")
     
